@@ -1,690 +1,693 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Генератор 3D-номера РФ (3MF для AMS / STL)</title>
-  <style>
-    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { margin: 0; background: #121417; color: #f1f3f5; display: flex; flex-direction: column; min-height: 100vh; }
-    header { padding: 12px 16px; background: #1a1d21; border-bottom: 1px solid #2c3036; display: flex; justify-content: space-between; align-items: center; }
-    header h1 { margin: 0; font-size: 16px; font-weight: 600; }
-    .saved-badge { font-size: 11px; color: #51cf66; opacity: 0; transition: opacity 0.3s; }
-    .saved-badge.show { opacity: 1; }
-
-    .container { display: flex; flex: 1; flex-direction: column; }
-
-    #viewer { width: 100%; height: 245px; position: relative; background: #16191d; border-bottom: 1px solid #2c3036; flex-shrink: 0; }
-    .hint { position: absolute; bottom: 8px; right: 12px; font-size: 11px; color: #868e96; pointer-events: none; }
-
-    .sidebar { width: 100%; padding: 16px; background: #1a1d21; display: flex; flex-direction: column; gap: 13px; flex: 1; }
-
-    @media (min-width: 768px) {
-      .container { flex-direction: row; }
-      #viewer { height: auto; min-height: calc(100vh - 46px); border-bottom: none; order: 2; }
-      .sidebar { max-width: 390px; border-right: 1px solid #2c3036; order: 1; }
-    }
-
-    .plate-input-box {
-      background: #fff; color: #111; border: 3px solid #111; border-radius: 10px;
-      padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 4px;
-    }
-    .plate-dot { width: 6px; height: 6px; border-radius: 50%; background: #222; flex-shrink: 0; }
-    .plate-main { display: flex; align-items: baseline; gap: 4px; flex: 1; justify-content: center; }
-    .plate-reg { border-left: 2px solid #111; padding-left: 8px; display: flex; flex-direction: column; align-items: center; }
-    input[type="text"] {
-      border: 1px dashed #bbb; border-radius: 4px; text-align: center; font-weight: 800;
-      text-transform: uppercase; background: #f8f9fa; color: #111; outline: none; padding: 2px 0;
-    }
-    input[type="text"]:focus { border-color: #228be6; background: #e7f5ff; }
-    #in-l1 { width: 36px; font-size: 25px; }
-    #in-dig { width: 76px; font-size: 30px; }
-    #in-l23 { width: 62px; font-size: 25px; }
-    #in-reg { width: 60px; font-size: 22px; }
-    .rus-label { font-size: 10px; font-weight: 800; letter-spacing: 0.5px; margin-top: 2px; }
-
-    .control-group { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
-    .control-group label { color: #adb5bd; display: flex; justify-content: space-between; }
-    select {
-      background: #25282e; color: #f1f3f5; border: 1px solid #373b42;
-      border-radius: 8px; padding: 10px 12px; font-size: 14px; outline: none;
-    }
-    input[type="range"] { width: 100%; accent-color: #339af0; }
-    .checkbox-row { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; }
-    .checkbox-row input { width: 18px; height: 18px; accent-color: #339af0; }
-    .btn-row { display: flex; gap: 10px; margin-top: 4px; }
-    button {
-      flex: 1; padding: 14px 10px; border: none; border-radius: 8px;
-      font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.15s;
-    }
-    .btn-3mf { background: #2b8a3e; color: white; }
-    .btn-3mf:active { background: #237032; }
-    .btn-stl { background: #343a40; color: #dee2e6; flex: 0.5; }
-    .btn-stl:active { background: #495057; }
-
-    .history-box { margin-top: 4px; padding-bottom: 16px; display: none; flex-direction: column; gap: 8px; }
-    .history-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #868e96; }
-    .history-clear { background: none; border: none; color: #868e96; font-size: 12px; padding: 0; flex: none; text-decoration: underline; }
-    .history-list { display: flex; flex-wrap: wrap; gap: 6px; }
-    .history-chip {
-      background: #25282e; border: 1px solid #373b42; color: #e9ecef;
-      padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
-      cursor: pointer; display: flex; align-items: center; gap: 6px;
-    }
-    .history-chip:active { background: #343a40; border-color: #339af0; }
-    .history-chip span.sub { color: #868e96; font-weight: 400; font-size: 11px; }
-  </style>
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-      }
-    }
-  </script>
-  <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Генератор 3D-номера РФ (3MF для AMS / STL)</title>
+<style>
+*{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+body{margin:0;background:#121417;color:#f1f3f5;display:flex;flex-direction:column;min-height:100vh}
+header{padding:12px 16px;background:#1a1d21;border-bottom:1px solid #2c3036;display:flex;justify-content:space-between;align-items:center}
+header h1{margin:0;font-size:16px;font-weight:600}
+.saved-badge{font-size:11px;color:#51cf66;opacity:0;transition:opacity .3s}
+.saved-badge.show{opacity:1}
+.container{display:flex;flex:1;flex-direction:column}
+#viewer{width:100%;height:245px;position:relative;background:#16191d;border-bottom:1px solid #2c3036;flex-shrink:0}
+.hint{position:absolute;bottom:8px;right:12px;font-size:11px;color:#868e96;pointer-events:none}
+.poly-badge{position:absolute;bottom:8px;left:12px;font-size:11px;color:#69db7c;background:rgba(20,24,28,.75);padding:3px 8px;border-radius:4px;pointer-events:none}
+.sidebar{width:100%;padding:16px;background:#1a1d21;display:flex;flex-direction:column;gap:13px;flex:1}
+@media(min-width:768px){.container{flex-direction:row}#viewer{height:auto;min-height:calc(100vh - 46px);border-bottom:none;order:2}.sidebar{max-width:390px;border-right:1px solid #2c3036;order:1}}
+.plate-input-box{background:#fff;color:#111;border:3px solid #111;border-radius:10px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:4px}
+.plate-dot{width:6px;height:6px;border-radius:50%;background:#222;flex-shrink:0}
+.plate-main{display:flex;align-items:baseline;gap:4px;flex:1;justify-content:center}
+.plate-reg{border-left:2px solid #111;padding-left:8px;display:flex;flex-direction:column;align-items:center}
+input[type=text]{border:1px dashed #bbb;border-radius:4px;text-align:center;font-weight:800;text-transform:uppercase;background:#f8f9fa;color:#111;outline:none;padding:2px 0}
+input[type=text]:focus{border-color:#228be6;background:#e7f5ff}
+#in-l1{width:36px;font-size:25px}#in-dig{width:76px;font-size:30px}#in-l23{width:62px;font-size:25px}#in-reg{width:60px;font-size:22px}
+.rus-label{font-size:10px;font-weight:800;letter-spacing:.5px;margin-top:2px}
+.control-group{display:flex;flex-direction:column;gap:4px;font-size:14px}
+.control-group label{color:#adb5bd;display:flex;justify-content:space-between}
+select{background:#25282e;color:#f1f3f5;border:1px solid #373b42;border-radius:8px;padding:10px 12px;font-size:14px;outline:none}
+input[type=range]{width:100%;accent-color:#339af0}
+.checkbox-row{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px}
+.checkbox-row input{width:18px;height:18px;accent-color:#339af0}
+.btn-row{display:flex;gap:10px;margin-top:4px}
+button{flex:1;padding:14px 10px;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;transition:.15s}
+.btn-3mf{background:#2b8a3e;color:#fff}.btn-3mf:active{background:#237032}
+.btn-stl{background:#343a40;color:#dee2e6;flex:.5}.btn-stl:active{background:#495057}
+.btn-share{background:#25282e;color:#adb5bd;border:1px solid #373b42;padding:10px;font-size:13px;flex:none}
+.btn-share:active{background:#343a40;color:#fff}
+.history-box{margin-top:4px;padding-bottom:16px;display:none;flex-direction:column;gap:8px}
+.history-header{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#868e96}
+.history-clear{background:none;border:none;color:#868e96;font-size:12px;padding:0;flex:none;text-decoration:underline}
+.history-list{display:flex;flex-wrap:wrap;gap:6px}
+.history-chip{background:#25282e;border:1px solid #373b42;color:#e9ecef;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px}
+.history-chip:active{background:#343a40;border-color:#339af0}
+.history-chip span.sub{color:#868e96;font-weight:400;font-size:11px}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+</script>
+<script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body>
-  <header>
-    <h1>🚗 Госномер РФ (3MF для AMS / STL)</h1>
-    <span class="saved-badge" id="saved-badge">✓ Сохранено</span>
-  </header>
-
-  <div class="container">
-    <div id="viewer">
-      <div class="hint">Крути пальцем • Зум двумя</div>
+<header>
+  <h1>🚗 Госномер РФ (3MF для AMS / STL)</h1>
+  <span class="saved-badge" id="saved-badge">✓ Сохранено</span>
+</header>
+<div class="container">
+  <div id="viewer">
+    <div class="poly-badge" id="poly-badge">Загрузка шрифта...</div>
+    <div class="hint">Крути пальцем • Зум двумя</div>
+  </div>
+  <div class="sidebar">
+    <div class="plate-input-box">
+      <span class="plate-dot"></span>
+      <div class="plate-main">
+        <input type="text" id="in-l1" maxlength="1" value="А" />
+        <input type="text" id="in-dig" maxlength="3" inputmode="numeric" value="012" />
+        <input type="text" id="in-l23" maxlength="2" value="АА" />
+      </div>
+      <div class="plate-reg">
+        <input type="text" id="in-reg" maxlength="3" inputmode="numeric" value="164" />
+        <span class="rus-label">RUS 🇷🇺</span>
+      </div>
+      <span class="plate-dot"></span>
     </div>
-
-    <div class="sidebar">
-      <div class="plate-input-box">
-        <span class="plate-dot"></span>
-        <div class="plate-main">
-          <input type="text" id="in-l1" maxlength="1" value="А" />
-          <input type="text" id="in-dig" maxlength="3" value="777" />
-          <input type="text" id="in-l23" maxlength="2" value="АА" />
-        </div>
-        <div class="plate-reg">
-          <input type="text" id="in-reg" maxlength="3" value="77" />
-          <span class="rus-label">RUS 🇷🇺</span>
-        </div>
-        <span class="plate-dot"></span>
+    <div class="control-group">
+      <label>Крепление под кольцо:</label>
+      <select id="sel-lug">
+        <option value="external" selected>Выносное ушко слева</option>
+        <option value="inside">Отверстие внутри номера (в углу)</option>
+        <option value="none">Без отверстия (просто номер)</option>
+      </select>
+    </div>
+    <label class="checkbox-row"><input type="checkbox" id="chk-bolts" checked />Монтажные точки по бокам</label>
+    <label class="checkbox-row"><input type="checkbox" id="chk-flag" checked />Флаг РФ (триколор в 3MF)</label>
+    <div class="control-group">
+      <label>Длина номера: <span id="val-scale">85 мм</span></label>
+      <input type="range" id="rng-scale" min="60" max="160" value="85" />
+    </div>
+    <div class="control-group">
+      <label>Толщина основы: <span id="val-base">2.2 мм</span></label>
+      <input type="range" id="rng-base" min="1.2" max="4.0" step="0.2" value="2.2" />
+    </div>
+    <div class="control-group">
+      <label>Высота букв и рамки: <span id="val-rel">0.8 мм</span></label>
+      <input type="range" id="rng-rel" min="0.4" max="2.0" step="0.2" value="0.8" />
+    </div>
+    <div class="btn-row">
+      <button class="btn-3mf" id="btn-3mf">🎨 Скачать 3MF (AMS)</button>
+      <button class="btn-stl" id="btn-stl">STL</button>
+    </div>
+    <button class="btn-share" id="btn-share">🔗 Скопировать ссылку с настройками</button>
+    <div class="history-box" id="history-box">
+      <div class="history-header">
+        <span>Недавние номера (нажми для загрузки):</span>
+        <button class="history-clear" id="btn-clear-history">Очистить</button>
       </div>
-
-      <div class="control-group">
-        <label>Крепление под кольцо:</label>
-        <select id="sel-lug">
-          <option value="external" selected>Выносное ушко слева</option>
-          <option value="inside">Отверстие внутри номера (в углу)</option>
-          <option value="none">Без отверстия (просто номер)</option>
-        </select>
-      </div>
-
-      <label class="checkbox-row">
-        <input type="checkbox" id="chk-bolts" checked />
-        Монтажные точки по бокам
-      </label>
-
-      <label class="checkbox-row">
-        <input type="checkbox" id="chk-flag" checked />
-        Флаг РФ (триколор в 3MF)
-      </label>
-
-      <div class="control-group">
-        <label>Длина номера: <span id="val-scale">85 мм</span></label>
-        <input type="range" id="rng-scale" min="60" max="160" value="85" />
-      </div>
-
-      <div class="control-group">
-        <label>Толщина основы: <span id="val-base">2.2 мм</span></label>
-        <input type="range" id="rng-base" min="1.2" max="4.0" step="0.2" value="2.2" />
-      </div>
-
-      <div class="control-group">
-        <label>Высота букв и рамки: <span id="val-rel">0.8 мм</span></label>
-        <input type="range" id="rng-rel" min="0.4" max="2.0" step="0.2" value="0.8" />
-      </div>
-
-      <div class="btn-row">
-        <button class="btn-3mf" id="btn-3mf">🎨 Скачать 3MF (AMS)</button>
-        <button class="btn-stl" id="btn-stl">STL</button>
-      </div>
-
-      <div class="history-box" id="history-box">
-        <div class="history-header">
-          <span>Недавние номера (нажми для загрузки):</span>
-          <button class="history-clear" id="btn-clear-history">Очистить</button>
-        </div>
-        <div class="history-list" id="history-list"></div>
-      </div>
+      <div class="history-list" id="history-list"></div>
     </div>
   </div>
+</div>
 
-  <script type="module">
-    import * as THREE from 'three';
-    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-    import { STLExporter } from 'three/addons/exporters/STLExporter.js';
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLExporter } from 'three/addons/exporters/STLExporter.js';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 
-    const STORAGE_KEY = 'rf_plate_3d_settings_v1';
-    const HISTORY_KEY = 'rf_plate_3d_history_v1';
+const STORAGE_KEY = 'rf_plate_3d_settings_v1';
+const HISTORY_KEY = 'rf_plate_3d_history_v1';
+const $ = id => document.getElementById(id);
 
-    function saveSettings() {
-      try {
-        const data = {
-          l1: document.getElementById('in-l1').value,
-          dig: document.getElementById('in-dig').value,
-          l23: document.getElementById('in-l23').value,
-          reg: document.getElementById('in-reg').value,
-          lug: document.getElementById('sel-lug').value,
-          bolts: document.getElementById('chk-bolts').checked,
-          flag: document.getElementById('chk-flag').checked,
-          scale: document.getElementById('rng-scale').value,
-          base: document.getElementById('rng-base').value,
-          rel: document.getElementById('rng-rel').value
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        const badge = document.getElementById('saved-badge');
-        badge.classList.add('show');
-        clearTimeout(window._saveTimer);
-        window._saveTimer = setTimeout(() => badge.classList.remove('show'), 1200);
-      } catch (e) {}
-    }
+const LAT_TO_CYR = {A:'А',B:'В',E:'Е',K:'К',M:'М',H:'Н',O:'О',P:'Р',C:'С',T:'Т',Y:'У',X:'Х'};
+const CYR_TO_LAT = {'А':'A','В':'B','Е':'E','К':'K','М':'M','Н':'H','О':'O','Р':'P','С':'C','Т':'T','У':'Y','Х':'X'};
+const sanitizeGostLetters = s => s.toUpperCase().split('').map(c => LAT_TO_CYR[c] || c).filter(c => 'АВЕКМНОРСТУХ'.includes(c)).join('');
+const sanitizeDigits = s => s.replace(/[^0-9]/g, '');
+const pushAll = (dst, src) => { for (let i = 0; i < src.length; i++) dst.push(src[i]); };
 
-    function loadSettings() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return;
-        const d = JSON.parse(raw);
-        if (d.l1 !== undefined) document.getElementById('in-l1').value = d.l1;
-        if (d.dig !== undefined) document.getElementById('in-dig').value = d.dig;
-        if (d.l23 !== undefined) document.getElementById('in-l23').value = d.l23;
-        if (d.reg !== undefined) document.getElementById('in-reg').value = d.reg;
-        if (d.lug !== undefined) document.getElementById('sel-lug').value = d.lug;
-        if (d.bolts !== undefined) document.getElementById('chk-bolts').checked = d.bolts;
-        if (d.flag !== undefined) document.getElementById('chk-flag').checked = d.flag;
-        if (d.scale !== undefined) document.getElementById('rng-scale').value = d.scale;
-        if (d.base !== undefined) document.getElementById('rng-base').value = d.base;
-        if (d.rel !== undefined) document.getElementById('rng-rel').value = d.rel;
-      } catch (e) {}
-    }
+function getCurrentState() {
+  return {
+    l1: $('in-l1').value, dig: $('in-dig').value, l23: $('in-l23').value, reg: $('in-reg').value,
+    lug: $('sel-lug').value, bolts: $('chk-bolts').checked, flag: $('chk-flag').checked,
+    scale: $('rng-scale').value, base: $('rng-base').value, rel: $('rng-rel').value
+  };
+}
 
-    function addToHistory() {
-      try {
-        const item = {
-          l1: document.getElementById('in-l1').value.toUpperCase(),
-          dig: document.getElementById('in-dig').value.toUpperCase(),
-          l23: document.getElementById('in-l23').value.toUpperCase(),
-          reg: document.getElementById('in-reg').value.toUpperCase(),
-          lug: document.getElementById('sel-lug').value,
-          bolts: document.getElementById('chk-bolts').checked,
-          flag: document.getElementById('chk-flag').checked,
-          scale: document.getElementById('rng-scale').value,
-          base: document.getElementById('rng-base').value,
-          rel: document.getElementById('rng-rel').value
-        };
-        const label = `${item.l1}${item.dig}${item.l23} | ${item.reg}`;
-        let list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-        list = list.filter(x => `${x.l1}${x.dig}${x.l23} | ${x.reg}` !== label);
-        list.unshift(item);
-        list = list.slice(0, 8);
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
-        renderHistory();
-      } catch (e) {}
-    }
+function applyState(d) {
+  if (d.l1 !== undefined) $('in-l1').value = sanitizeGostLetters(d.l1);
+  if (d.dig !== undefined) $('in-dig').value = sanitizeDigits(d.dig);
+  if (d.l23 !== undefined) $('in-l23').value = sanitizeGostLetters(d.l23);
+  if (d.reg !== undefined) $('in-reg').value = sanitizeDigits(d.reg);
+  if (d.lug !== undefined) $('sel-lug').value = d.lug;
+  if (d.bolts !== undefined) $('chk-bolts').checked = (d.bolts === true || d.bolts === '1');
+  if (d.flag !== undefined) $('chk-flag').checked = (d.flag === true || d.flag === '1');
+  if (d.scale !== undefined) $('rng-scale').value = d.scale;
+  if (d.base !== undefined) $('rng-base').value = d.base;
+  if (d.rel !== undefined) $('rng-rel').value = d.rel;
+}
 
-    function renderHistory() {
-      const box = document.getElementById('history-box');
-      const container = document.getElementById('history-list');
-      try {
-        const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-        if (!list.length) {
-          box.style.display = 'none';
-          return;
-        }
-        box.style.display = 'flex';
-        container.innerHTML = '';
-        list.forEach(item => {
-          const chip = document.createElement('div');
-          chip.className = 'history-chip';
-          chip.innerHTML = `<span>${item.l1}${item.dig}${item.l23} <b>${item.reg}</b></span><span class="sub">${item.scale}мм</span>`;
-          chip.addEventListener('click', () => {
-            document.getElementById('in-l1').value = item.l1;
-            document.getElementById('in-dig').value = item.dig;
-            document.getElementById('in-l23').value = item.l23;
-            document.getElementById('in-reg').value = item.reg;
-            if (item.lug) document.getElementById('sel-lug').value = item.lug;
-            if (item.bolts !== undefined) document.getElementById('chk-bolts').checked = item.bolts;
-            if (item.flag !== undefined) document.getElementById('chk-flag').checked = item.flag;
-            if (item.scale) document.getElementById('rng-scale').value = item.scale;
-            if (item.base) document.getElementById('rng-base').value = item.base;
-            if (item.rel) document.getElementById('rng-rel').value = item.rel;
-            updateLabels();
-            saveSettings();
-            buildPlateMesh();
-          });
-          container.appendChild(chip);
-        });
-      } catch (e) {}
-    }
+function saveSettings() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(getCurrentState()));
+    const badge = $('saved-badge');
+    badge.classList.add('show');
+    clearTimeout(window._saveTimer);
+    window._saveTimer = setTimeout(() => badge.classList.remove('show'), 1200);
+  } catch (e) {}
+}
 
-    document.getElementById('btn-clear-history').addEventListener('click', () => {
-      localStorage.removeItem(HISTORY_KEY);
-      renderHistory();
+function loadSettings() {
+  const p = new URLSearchParams(window.location.search);
+  if (p.has('l1') || p.has('dig') || p.has('scale')) {
+    const g = k => p.get(k) ?? undefined;
+    applyState({ l1: g('l1'), dig: g('dig'), l23: g('l23'), reg: g('reg'), lug: g('lug'),
+      bolts: g('bolts'), flag: g('flag'), scale: g('scale'), base: g('base'), rel: g('rel') });
+    saveSettings();
+    return;
+  }
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) applyState(JSON.parse(raw));
+  } catch (e) {}
+}
+
+$('btn-share').addEventListener('click', async () => {
+  const s = getCurrentState();
+  const params = new URLSearchParams({ l1: s.l1, dig: s.dig, l23: s.l23, reg: s.reg, lug: s.lug,
+    bolts: s.bolts ? '1' : '0', flag: s.flag ? '1' : '0', scale: s.scale, base: s.base, rel: s.rel });
+  const shareUrl = `${window.location.origin}${window.location.pathname}?${params}`;
+  try {
+    await navigator.clipboard.writeText(shareUrl);
+    const btn = $('btn-share');
+    btn.textContent = '✅ Ссылка скопирована!';
+    setTimeout(() => btn.textContent = '🔗 Скопировать ссылку с настройками', 2000);
+  } catch (e) {
+    prompt('Скопируй ссылку с настройками:', shareUrl);
+  }
+});
+
+const histLabel = x => `${x.l1}${x.dig}${x.l23} | ${x.reg}`;
+
+function addToHistory() {
+  try {
+    const item = getCurrentState();
+    let list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    list = list.filter(x => histLabel(x) !== histLabel(item));
+    list.unshift(item);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, 8)));
+    renderHistory();
+  } catch (e) {}
+}
+
+function renderHistory() {
+  const box = $('history-box'), container = $('history-list');
+  try {
+    const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    if (!list.length) { box.style.display = 'none'; return; }
+    box.style.display = 'flex';
+    container.innerHTML = '';
+    list.forEach(item => {
+      const chip = document.createElement('div');
+      chip.className = 'history-chip';
+      chip.innerHTML = `<span>${item.l1}${item.dig}${item.l23} <b>${item.reg}</b></span><span class="sub">${item.scale}мм</span>`;
+      chip.addEventListener('click', () => { applyState(item); updateLabels(); saveSettings(); buildPlateMesh(); });
+      container.appendChild(chip);
     });
+  } catch (e) {}
+}
 
-    const viewer = document.getElementById('viewer');
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x16191d);
+$('btn-clear-history').addEventListener('click', () => { localStorage.removeItem(HISTORY_KEY); renderHistory(); });
 
-    const w = viewer.clientWidth || window.innerWidth;
-    const h = viewer.clientHeight || 245;
+// ---------- 3D сцена ----------
+const viewer = $('viewer');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x16191d);
+const w0 = viewer.clientWidth || window.innerWidth, h0 = viewer.clientHeight || 245;
+const camera = new THREE.PerspectiveCamera(35, w0 / h0, 0.1, 1000);
+camera.position.set(0, -18, 92);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(w0, h0);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+viewer.appendChild(renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
 
-    const camera = new THREE.PerspectiveCamera(35, w / h, 0.1, 1000);
-    camera.position.set(0, -18, 92);
+scene.add(new THREE.AmbientLight(0xffffff, 2.0));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
+dirLight.position.set(40, -60, 100);
+scene.add(dirLight);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(w, h);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    viewer.appendChild(renderer.domElement);
+const plateGroup = new THREE.Group();
+scene.add(plateGroup);
+let colorParts = {};
+let loadedFont = null;
+let capH1 = 0.73;
 
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
+const FONT_URLS = [
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/fonts/helvetiker_bold.typeface.json',
+  'https://unpkg.com/three@0.160.0/examples/fonts/helvetiker_bold.typeface.json',
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/fonts/droid/droid_sans_bold.typeface.json'
+];
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
-    dirLight.position.set(40, -60, 100);
-    scene.add(dirLight);
+function normalizeGlyph(ch) {
+  if (!loadedFont || !loadedFont.data || !loadedFont.data.glyphs) return ch;
+  if (loadedFont.data.glyphs[ch]) return ch;
+  return CYR_TO_LAT[ch] || ch;
+}
 
-    let plateGroup = new THREE.Group();
-    scene.add(plateGroup);
-    let colorParts = {};
+function measureCapHeight() {
+  const g = new TextGeometry('H', { font: loadedFont, size: 1, height: 0.1, curveSegments: 4 });
+  g.computeBoundingBox();
+  if (g.boundingBox.max.y > 0.1) capH1 = g.boundingBox.max.y;
+  g.dispose();
+}
 
-    const FONT_STACK = 'Arial, "Roboto", "Noto Sans", "DejaVu Sans", sans-serif';
+function loadFontWithFallback(idx = 0) {
+  if (idx >= FONT_URLS.length) {
+    $('poly-badge').textContent = 'Ошибка загрузки шрифта (проверь интернет)';
+    return;
+  }
+  new FontLoader().load(FONT_URLS[idx], font => {
+    loadedFont = font;
+    measureCapHeight();
+    buildPlateMesh();
+  }, undefined, () => loadFontWithFallback(idx + 1));
+}
 
-    function buildPlateMesh() {
-      while (plateGroup.children.length) plateGroup.remove(plateGroup.children[0]);
+function extrudeToPositions(shape, z0, z1, curveSegments = 14) {
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: z1 - z0, bevelEnabled: false, curveSegments });
+  geo.translate(0, 0, z0);
+  const ni = geo.index ? geo.toNonIndexed() : geo;
+  const arr = Array.from(ni.attributes.position.array);
+  geo.dispose();
+  if (ni !== geo) ni.dispose();
+  return arr;
+}
 
-      const l1 = (document.getElementById('in-l1').value || ' ').toUpperCase();
-      const dig = (document.getElementById('in-dig').value || '   ').toUpperCase();
-      const l23 = (document.getElementById('in-l23').value || '  ').toUpperCase();
-      const reg = (document.getElementById('in-reg').value || '  ').toUpperCase();
-      const lugMode = document.getElementById('sel-lug').value;
-      const withBolts = document.getElementById('chk-bolts').checked;
-      const withFlag = document.getElementById('chk-flag').checked;
+function createRoundedRect(x, y, w, h, r, isHole = false) {
+  const p = isHole ? new THREE.Path() : new THREE.Shape();
+  p.moveTo(x + r, y);
+  p.lineTo(x + w - r, y);
+  p.absarc(x + w - r, y + r, r, -Math.PI / 2, 0, false);
+  p.lineTo(x + w, y + h - r);
+  p.absarc(x + w - r, y + h - r, r, 0, Math.PI / 2, false);
+  p.lineTo(x + r, y + h);
+  p.absarc(x + r, y + h - r, r, Math.PI / 2, Math.PI, false);
+  p.lineTo(x, y + r);
+  p.absarc(x + r, y + r, r, Math.PI, Math.PI * 1.5, false);
+  return p;
+}
 
-      const targetW = parseFloat(document.getElementById('rng-scale').value);
-      const baseH = parseFloat(document.getElementById('rng-base').value);
-      const relH = parseFloat(document.getElementById('rng-rel').value);
-
-      const scale = targetW / 520.0;
-      const W = 520 * scale;
-      const H = 112 * scale;
-      const R = 11 * scale;
-
-      const lugD = 11.0;
-      const holeD = 4.5;
-      const lugOffset = (lugMode === 'external') ? lugD * 0.45 : 0;
-      const leftExtra = (lugMode === 'external') ? (lugOffset + lugD / 2) : 0;
-
-      const totalW = W + leftExtra;
-      const totalH = H;
-
-      const pxPerMm = 7.5;
-      const pad = 0.6;
-      const nx = Math.ceil((totalW + pad * 2) * pxPerMm);
-      const ny = Math.ceil((totalH + pad * 2) * pxPerMm);
-
-      const toPxX = (x) => (x + leftExtra + pad) * pxPerMm;
-      const toPxY = (y) => (totalH - y + pad) * pxPerMm;
-
-      function roundRect(ctx, x, y, w, h, r) {
-        ctx.beginPath();
-        ctx.roundRect(x, y, w, h, r);
-        ctx.closePath();
-      }
-
-      const canvas = document.createElement('canvas');
-      canvas.width = nx; canvas.height = ny;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(0, 0, nx, ny);
-
-      // 1. Белая основа номера
-      ctx.fillStyle = '#ffffff';
-      roundRect(ctx, toPxX(0), toPxY(H), W * pxPerMm, H * pxPerMm, R * pxPerMm);
-      ctx.fill();
-
-      // Выносное ушко слева
-      if (lugMode === 'external') {
-        const cx = toPxX(-lugOffset);
-        const cy = toPxY(H / 2);
-        ctx.beginPath();
-        ctx.arc(cx, cy, (lugD / 2) * pxPerMm, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillRect(cx, cy - lugD * 0.42 * pxPerMm, (lugOffset + R * 0.5) * pxPerMm, lugD * 0.84 * pxPerMm);
-
-        ctx.fillStyle = '#000000';
-        ctx.beginPath();
-        ctx.arc(cx, cy, (holeD / 2) * pxPerMm, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // 2. Чёрная внешняя рамка и разделитель
-      const border = 5.0 * scale;
-      ctx.fillStyle = '#0a0a0a';
-      roundRect(ctx, toPxX(0), toPxY(H), W * pxPerMm, H * pxPerMm, R * pxPerMm);
-      ctx.fill();
-
-      ctx.fillStyle = '#ffffff';
-      roundRect(
-        ctx,
-        toPxX(border), toPxY(H - border),
-        (W - border * 2) * pxPerMm, (H - border * 2) * pxPerMm,
-        Math.max(1, (R - border) * pxPerMm)
-      );
-      ctx.fill();
-
-      const divX = 386 * scale;
-      ctx.fillStyle = '#0a0a0a';
-      ctx.fillRect(toPxX(divX), toPxY(H), border * pxPerMm, H * pxPerMm);
-
-      // Монтажные точки по бокам
-      if (withBolts) {
-        ctx.fillStyle = '#0a0a0a';
-        const dotR = Math.max(1.2, 3.2 * scale * pxPerMm);
-        if (lugMode !== 'inside') {
-          ctx.beginPath();
-          ctx.arc(toPxX(21 * scale), toPxY(56 * scale), dotR, 0, Math.PI * 2);
-          ctx.fill();
+function makeText(text, capHeight, scaleX, letterGap, z0, z1, curveSegs = 9, boldness = 0) {
+  if (!loadedFont || !text) return { width: 0, place: () => [], dispose() {} };
+  const fontSize = capHeight / capH1;
+  const items = [];
+  for (const ch of Array.from(text).map(normalizeGlyph)) {
+    if (ch === ' ') { items.push({ g: null, w: fontSize * 0.35 * scaleX }); continue; }
+    const g = new TextGeometry(ch, {
+      font: loadedFont, size: fontSize, height: z1 - z0, curveSegments: curveSegs,
+      bevelEnabled: boldness > 0, bevelThickness: 0.001, bevelSize: boldness, bevelOffset: 0, bevelSegments: 1
+    });
+    g.scale(scaleX, 1, 1);
+    g.computeBoundingBox();
+    const bb = g.boundingBox;
+    g.translate(-bb.min.x, 0, z0);
+    items.push({ g, w: bb.max.x - bb.min.x });
+  }
+  const width = items.reduce((a, it) => a + it.w, 0) + Math.max(0, items.length - 1) * letterGap;
+  return {
+    width,
+    place(leftX, baseY, k = 1) {
+      const out = [];
+      let curX = leftX;
+      for (const it of items) {
+        if (it.g) {
+          const src = it.g.index ? it.g.toNonIndexed() : it.g;
+          const a = src.attributes.position.array;
+          for (let i = 0; i < a.length; i += 3) out.push(a[i] * k + curX, a[i + 1] + baseY, a[i + 2]);
+          if (src !== it.g) src.dispose();
         }
-        ctx.beginPath();
-        ctx.arc(toPxX(499 * scale), toPxY(56 * scale), dotR, 0, Math.PI * 2);
-        ctx.fill();
+        curX += (it.w + letterGap) * k;
       }
+      return out;
+    },
+    dispose() { items.forEach(it => it.g && it.g.dispose()); }
+  };
+}
 
-      // 3. Ровные стандартные буквы и цифры на единой нижней базовой линии (Y = 20 мм)
-      ctx.fillStyle = '#0a0a0a';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
+function clearPlateGroup() {
+  while (plateGroup.children.length) {
+    const c = plateGroup.children[0];
+    if (c.geometry) c.geometry.dispose();
+    if (c.material) c.material.dispose();
+    plateGroup.remove(c);
+  }
+}
 
-      const baseLinePx = toPxY(20 * scale);
+function buildPlateMesh() {
+  clearPlateGroup();
 
-      // Первая буква
-      ctx.font = `800 ${Math.round(74 * scale * pxPerMm)}px ${FONT_STACK}`;
-      ctx.fillText(l1, toPxX(58 * scale), baseLinePx);
+  const l1 = $('in-l1').value.toUpperCase();
+  const dig = $('in-dig').value.toUpperCase();
+  const l23 = $('in-l23').value.toUpperCase();
+  const reg = $('in-reg').value.toUpperCase();
+  const lugMode = $('sel-lug').value;
+  const withBolts = $('chk-bolts').checked;
+  const withFlag = $('chk-flag').checked;
 
-      // Три цифры (чуть выше букв, но стоят на той же нижней линии)
-      ctx.font = `800 ${Math.round(96 * scale * pxPerMm)}px ${FONT_STACK}`;
-      ctx.fillText(dig, toPxX(176 * scale), baseLinePx);
+  const targetW = parseFloat($('rng-scale').value);
+  const baseH = parseFloat($('rng-base').value);
+  const relH = parseFloat($('rng-rel').value);
 
-      // Две буквы
-      ctx.font = `800 ${Math.round(74 * scale * pxPerMm)}px ${FONT_STACK}`;
-      ctx.fillText(l23, toPxX(316 * scale), baseLinePx);
+  const scale = targetW / 520.0;
+  const W = 520 * scale, H = 112 * scale;
+  const R_out = 12 * scale, border = 6.0 * scale, R_in = 7.0 * scale;
 
-      // Блок региона (ровный шрифт, нижняя линия Y = 46 мм)
-      const is3Reg = reg.trim().length >= 3;
-      const regX = is3Reg ? 447 : 453;
-      const regFontSize = is3Reg ? 58 : 66;
-      ctx.font = `800 ${Math.round(regFontSize * scale * pxPerMm)}px ${FONT_STACK}`;
-      ctx.fillText(reg, toPxX(regX * scale), toPxY(46 * scale));
+  const lugD = 11.0, holeD = 4.5;
+  const lugOffset = (lugMode === 'external') ? lugD * 0.45 : 0;
+  const leftExtra = (lugMode === 'external') ? (lugOffset + lugD / 2) : 0;
+  const totalW = W + leftExtra;
+  const px0 = -totalW / 2 + leftExtra;
+  const py0 = -H / 2;
 
-      // Надпись RUS (нижняя линия Y = 16 мм)
-      const rusX = withFlag ? 426 : 453;
-      ctx.save();
-      ctx.font = `900 ${Math.round(21 * scale * pxPerMm)}px ${FONT_STACK}`;
-      ctx.translate(toPxX(rusX * scale), toPxY(16 * scale));
-      ctx.scale(1.12, 0.95);
-      ctx.fillText('RUS', 0, 0);
-      ctx.restore();
+  const embedZ = Math.min(0.22, baseH * 0.3);
+  const relZ0 = +(baseH - embedZ).toFixed(3);
+  const relZ1 = +(baseH + relH).toFixed(3);
 
-      // 4. Флаг РФ
-      if (withFlag) {
-        const fx = 460 * scale, fy = 15 * scale, fw = 42 * scale, fh = 19 * scale;
-        const bw = Math.max(0.25, 1.3 * scale);
-        ctx.fillStyle = '#0a0a0a';
-        ctx.fillRect(toPxX(fx), toPxY(fy + fh), fw * pxPerMm, fh * pxPerMm);
+  // 1. БЕЛАЯ ОСНОВА
+  const baseShape = new THREE.Shape();
+  baseShape.moveTo(px0 + R_out, py0);
+  baseShape.lineTo(px0 + W - R_out, py0);
+  baseShape.absarc(px0 + W - R_out, py0 + R_out, R_out, -Math.PI / 2, 0, false);
+  baseShape.lineTo(px0 + W, py0 + H - R_out);
+  baseShape.absarc(px0 + W - R_out, py0 + H - R_out, R_out, 0, Math.PI / 2, false);
+  baseShape.lineTo(px0 + R_out, py0 + H);
+  baseShape.absarc(px0 + R_out, py0 + H - R_out, R_out, Math.PI / 2, Math.PI, false);
 
-        const innerWFlag = fw - 2 * bw;
-        const innerHFlag = fh - 2 * bw;
-        const sh = innerHFlag / 3;
+  if (lugMode === 'external') {
+    const cy = py0 + H / 2, lugR = lugD / 2, neckHalf = lugD * 0.42, lugCx = px0 - lugOffset;
+    baseShape.lineTo(px0, cy + neckHalf);
+    baseShape.lineTo(lugCx, cy + neckHalf);
+    baseShape.absarc(lugCx, cy, lugR, Math.PI / 2, Math.PI * 1.5, false);
+    baseShape.lineTo(px0, cy - neckHalf);
+  }
+  baseShape.lineTo(px0, py0 + R_out);
+  baseShape.absarc(px0 + R_out, py0 + R_out, R_out, Math.PI, Math.PI * 1.5, false);
 
-        ctx.fillStyle = '#ff1e1e';
-        ctx.fillRect(toPxX(fx + bw), toPxY(fy + bw + sh), innerWFlag * pxPerMm, sh * pxPerMm);
+  const insideHoleR = 1.65;
+  const insideHolePad = insideHoleR + 0.9;
+  const insideHoleCx = px0 + border + insideHolePad;
+  const insideHoleCy = py0 + H - border - insideHolePad;
 
-        ctx.fillStyle = '#0050ff';
-        ctx.fillRect(toPxX(fx + bw), toPxY(fy + bw + sh * 2), innerWFlag * pxPerMm, sh * pxPerMm);
+  if (lugMode === 'external') {
+    const hole = new THREE.Path();
+    hole.absarc(px0 - lugOffset, py0 + H / 2, holeD / 2, 0, Math.PI * 2, true);
+    baseShape.holes.push(hole);
+  } else if (lugMode === 'inside') {
+    const hole = new THREE.Path();
+    hole.absarc(insideHoleCx, insideHoleCy, insideHoleR, 0, Math.PI * 2, true);
+    baseShape.holes.push(hole);
+  }
 
-        ctx.fillStyle = '#f5f5f5';
-        ctx.fillRect(toPxX(fx + bw), toPxY(fy + bw + sh * 3), innerWFlag * pxPerMm, sh * pxPerMm);
-      }
+  const whitePositions = extrudeToPositions(baseShape, 0, baseH, 16);
+  const blackPositions = [], bluePositions = [], redPositions = [];
 
-      // Чистое отверстие в верхнем левом углу самого номера
-      if (lugMode === 'inside') {
-        const inHoleX = border + 3.6;
-        const inHoleY = H - border - 3.6;
-        const rHole = 2.0;
+  // 2. ЧЁРНАЯ РАМКА С ДВУМЯ ОКНАМИ
+  const divStart = 382 * scale;
+  const frameOuter = createRoundedRect(px0, py0, W, H, R_out, false);
+  const winY = py0 + border, winH = H - border * 2;
+  const leftWinR = (lugMode === 'inside') ? Math.min(R_in, 1.2) : R_in;
+  frameOuter.holes.push(createRoundedRect(px0 + border, winY, divStart - border, winH, leftWinR, true));
+  const rightWinX = px0 + divStart + border;
+  const rightWinW = (W - border) - (divStart + border);
+  frameOuter.holes.push(createRoundedRect(rightWinX, winY, rightWinW, winH, R_in, true));
+  pushAll(blackPositions, extrudeToPositions(frameOuter, relZ0, relZ1, 14));
 
-        ctx.fillStyle = '#000000';
-        ctx.beginPath();
-        ctx.arc(toPxX(inHoleX), toPxY(inHoleY), rHole * pxPerMm, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      const img = ctx.getImageData(0, 0, nx, ny).data;
-      const cellType = new Uint8Array(nx * ny);
-      for (let i = 0; i < nx * ny; i++) {
-        const r = img[i * 4], g = img[i * 4 + 1], b = img[i * 4 + 2];
-        if (r < 5 && g < 5 && b < 5) cellType[i] = 0;
-        else if (r > 250 && g > 250 && b > 250) cellType[i] = 1;
-        else if (r > 235 && g > 235 && b > 235) cellType[i] = 5;
-        else if (r > 200 && g < 60) cellType[i] = 4;
-        else if (b > 200 && r < 60) cellType[i] = 3;
-        else cellType[i] = 2;
-      }
-
-      const buckets = {
-        white: { color: '#FFFFFF', hex: 0xf5f5f5, pos: [] },
-        black: { color: '#18181B', hex: 0x18181b, pos: [] },
-        blue:  { color: '#0055FF', hex: 0x0055ff, pos: [] },
-        red:   { color: '#E61919', hex: 0xe61919, pos: [] }
-      };
-
-      const dx = 1.0 / pxPerMm;
-      const offX = -totalW / 2;
-      const offY = -totalH / 2;
-
-      const addBox = (arr, x0, x1, y0, y1, z0, z1) => {
-        arr.push(x0,y0,z1, x1,y0,z1, x1,y1,z1, x0,y0,z1, x1,y1,z1, x0,y1,z1);
-        arr.push(x0,y1,z0, x1,y1,z0, x1,y0,z0, x0,y1,z0, x1,y0,z0, x0,y0,z0);
-        arr.push(x1,y1,z0, x0,y1,z0, x0,y1,z1, x1,y1,z0, x0,y1,z1, x1,y1,z1);
-        arr.push(x0,y0,z0, x1,y0,z0, x1,y0,z1, x0,y0,z0, x1,y0,z1, x0,y0,z1);
-        arr.push(x0,y1,z0, x0,y0,z0, x0,y0,z1, x0,y1,z0, x0,y0,z1, x0,y1,z1);
-        arr.push(x1,y0,z0, x1,y1,z0, x1,y1,z1, x1,y0,z0, x1,y1,z1, x1,y0,z1);
-      };
-
-      for (let r = 0; r < ny; r++) {
-        let c = 0;
-        while (c < nx) {
-          const t = cellType[r * nx + c];
-          if (t === 0) { c++; continue; }
-          let cEnd = c + 1;
-          while (cEnd < nx && cellType[r * nx + cEnd] === t) cEnd++;
-
-          const x0 = offX + c * dx;
-          const x1 = offX + cEnd * dx;
-          const y0 = offY + (ny - 1 - r) * dx;
-          const y1 = y0 + dx;
-
-          const topWhiteZ = (t === 5) ? (baseH + relH) : baseH;
-          addBox(buckets.white.pos, x0, x1, y0, y1, 0, topWhiteZ);
-
-          if (t === 2) addBox(buckets.black.pos, x0, x1, y0, y1, baseH, baseH + relH);
-          if (t === 3) addBox(buckets.blue.pos,  x0, x1, y0, y1, baseH, baseH + relH);
-          if (t === 4) addBox(buckets.red.pos,   x0, x1, y0, y1, baseH, baseH + relH);
-
-          c = cEnd;
-        }
-      }
-
-      colorParts = buckets;
-
-      for (const [key, data] of Object.entries(buckets)) {
-        if (data.pos.length === 0) continue;
-        const geo = new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.Float32BufferAttribute(data.pos, 3));
-        geo.computeVertexNormals();
-        const mat = new THREE.MeshStandardMaterial({ color: data.hex, roughness: 0.4 });
-        plateGroup.add(new THREE.Mesh(geo, mat));
-      }
-
-      const dist = Math.max(78, totalW * 0.92);
-      camera.position.set(0, -dist * 0.22, dist);
-      controls.target.set(0, 0, 0);
-      controls.update();
+  // Монтажные точки
+  if (withBolts) {
+    const dotR = Math.max(0.4, 3.0 * scale);
+    if (lugMode !== 'inside') {
+      const d = new THREE.Shape();
+      d.absarc(px0 + 21 * scale, py0 + 56 * scale, dotR, 0, Math.PI * 2, false);
+      pushAll(blackPositions, extrudeToPositions(d, relZ0, relZ1, 12));
     }
+    const d2 = new THREE.Shape();
+    d2.absarc(px0 + 499 * scale, py0 + 56 * scale, dotR, 0, Math.PI * 2, false);
+    pushAll(blackPositions, extrudeToPositions(d2, relZ0, relZ1, 12));
+  }
 
-    function triggerDownload(blob, filename) {
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      }, 2000);
-    }
+  // 3. СИМВОЛЫ — АВТОРАССТАНОВКА
+  {
+    const winMidY = py0 + H / 2;
+    const digCap = 66 * scale;
+    const letCap = digCap * 0.82;
+    const baseY = winMidY - digCap / 2;
 
-    async function export3MF(filename) {
-      if (typeof JSZip === 'undefined') {
-        alert('Библиотека JSZip ещё загружается, проверь интернет и нажми ещё раз.');
-        return;
+    let contentL = px0 + border + ((withBolts && lugMode !== 'inside') ? 28 : 12) * scale;
+    if (lugMode === 'inside') contentL = Math.max(contentL, insideHoleCx + insideHoleR + 1.2);
+    const contentR = px0 + divStart - 12 * scale;
+    const avail = contentR - contentL;
+
+    const parts = [
+      makeText(l1, letCap, 0.88, 6 * scale, relZ0, relZ1, 9),
+      makeText(dig, digCap, 0.88, 10 * scale, relZ0, relZ1, 10),
+      makeText(l23, letCap, 0.88, 6 * scale, relZ0, relZ1, 9)
+    ].filter(t => t.width > 0);
+
+    const n = parts.length;
+    if (n) {
+      const sum = parts.reduce((a, t) => a + t.width, 0);
+      const gaps = n - 1;
+      const minGap = 12 * scale, maxGap = 24 * scale;
+      let k = 1, gap = 0;
+      if (gaps > 0) {
+        if (sum + gaps * minGap > avail) { k = Math.max(0.5, (avail - gaps * minGap) / sum); gap = minGap; }
+        else gap = Math.min(maxGap, (avail - sum) / gaps);
+      } else if (sum > avail) k = avail / sum;
+      let cx = contentL + (avail - (sum * k + gaps * gap)) / 2;
+      for (const t of parts) {
+        pushAll(blackPositions, t.place(cx, baseY, k));
+        cx += t.width * k + gap;
       }
-      const zip = new JSZip();
+    }
+    parts.forEach(t => t.dispose());
+  }
 
-      zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8"?>
+  // 3б. Правое окно: крупный регион сверху, исходные «RUS» + флаг снизу
+  {
+    const rContentL = rightWinX + 6 * scale;
+    const rContentR = rightWinX + rightWinW - (withBolts ? 20 : 6) * scale;
+    const availR = rContentR - rContentL;
+
+    const is3 = reg.trim().length >= 3;
+    const regCap = (is3 ? 50 : 54) * scale;
+    const regGap = (is3 ? 2.5 : 4.5) * scale;
+    const regT = makeText(reg, regCap, 0.90, regGap, relZ0, relZ1, 9);
+    if (regT.width > 0) {
+      const kr = Math.min(1, availR / regT.width);
+      pushAll(blackPositions, regT.place(rContentL + (availR - regT.width * kr) / 2, py0 + 45 * scale, kr));
+    }
+    regT.dispose();
+
+    const rusCap = 17 * scale;
+    const rusT = makeText('RUS', rusCap, 0.96, 3 * scale, relZ0, relZ1, 6, 0.55 * scale);
+    const fw = 36 * scale, fh = 18 * scale, flagGap = 6 * scale;
+    const flagPart = withFlag ? flagGap + fw : 0;
+    const kRus = Math.min(1, (availR - flagPart) / rusT.width);
+    const rowW = rusT.width * kRus + flagPart;
+    const rowL = rContentL + (availR - rowW) / 2;
+    const rusBase = py0 + 15 * scale;
+    pushAll(blackPositions, rusT.place(rowL, rusBase, kRus));
+    rusT.dispose();
+
+    // 4. ФЛАГ РФ
+    if (withFlag) {
+      const fx = rowL + rusT.width * kRus + flagGap;
+      const fy = rusBase + (rusCap - fh) / 2;
+      const bw = Math.max(0.25, 1.3 * scale);
+
+      const rect = (rx, ry, rw, rh) => {
+        const s = new THREE.Shape();
+        s.moveTo(rx, ry); s.lineTo(rx + rw, ry); s.lineTo(rx + rw, ry + rh); s.lineTo(rx, ry + rh); s.closePath();
+        return s;
+      };
+      const flagBorder = rect(fx, fy, fw, fh);
+      const flagHole = new THREE.Path();
+      flagHole.moveTo(fx + bw, fy + bw);
+      flagHole.lineTo(fx + bw, fy + fh - bw);
+      flagHole.lineTo(fx + fw - bw, fy + fh - bw);
+      flagHole.lineTo(fx + fw - bw, fy + bw);
+      flagHole.closePath();
+      flagBorder.holes.push(flagHole);
+      pushAll(blackPositions, extrudeToPositions(flagBorder, relZ0, relZ1, 1));
+
+      const inW = fw - 2 * bw, sh = (fh - 2 * bw) / 3;
+      pushAll(redPositions, extrudeToPositions(rect(fx + bw, fy + bw, inW, sh), relZ0, relZ1, 1));
+      pushAll(bluePositions, extrudeToPositions(rect(fx + bw, fy + bw + sh, inW, sh), relZ0, relZ1, 1));
+      pushAll(whitePositions, extrudeToPositions(rect(fx + bw, fy + bw + sh * 2, inW, sh), relZ0, relZ1, 1));
+    }
+  }
+
+  colorParts = {
+    white: { color: '#FFFFFF', hex: 0xffffff, pos: whitePositions },
+    black: { color: '#18181B', hex: 0x18181b, pos: blackPositions },
+    blue:  { color: '#0055FF', hex: 0x0055ff, pos: bluePositions },
+    red:   { color: '#E61919', hex: 0xe61919, pos: redPositions }
+  };
+
+  let totalTris = 0;
+  for (const data of Object.values(colorParts)) {
+    if (!data.pos.length) continue;
+    totalTris += data.pos.length / 9;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(data.pos, 3));
+    geo.computeVertexNormals();
+    plateGroup.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: data.hex, roughness: 0.4 })));
+  }
+
+  $('poly-badge').textContent = loadedFont ? `${totalTris.toLocaleString('ru-RU')} треуг.` : 'Загрузка векторного шрифта...';
+
+  const dist = Math.max(78, totalW * 0.92);
+  camera.position.set(0, -dist * 0.22, dist);
+  controls.target.set(0, 0, 0);
+  controls.update();
+}
+
+// ---------- Экспорт ----------
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
+}
+
+function buildIndexedMeshXml(pos, pid, pindex) {
+  const vertMap = new Map(), vertices = [], triangles = [];
+  const getIdx = (x, y, z) => {
+    const kx = Math.round(x * 1000), ky = Math.round(y * 1000), kz = Math.round(z * 1000);
+    const key = `${kx}_${ky}_${kz}`;
+    let idx = vertMap.get(key);
+    if (idx === undefined) {
+      idx = vertices.length;
+      vertMap.set(key, idx);
+      vertices.push(`          <vertex x="${(kx / 1000).toFixed(3)}" y="${(ky / 1000).toFixed(3)}" z="${(kz / 1000).toFixed(3)}" />`);
+    }
+    return idx;
+  };
+  const numTris = pos.length / 9;
+  for (let i = 0; i < numTris; i++) {
+    const b = i * 9;
+    const v1 = getIdx(pos[b], pos[b + 1], pos[b + 2]);
+    const v2 = getIdx(pos[b + 3], pos[b + 4], pos[b + 5]);
+    const v3 = getIdx(pos[b + 6], pos[b + 7], pos[b + 8]);
+    if (v1 !== v2 && v2 !== v3 && v1 !== v3) {
+      triangles.push(`          <triangle v1="${v1}" v2="${v2}" v3="${v3}" pid="${pid}" p1="${pindex}" />`);
+    }
+  }
+  return `        <vertices>\n${vertices.join('\n')}\n        </vertices>\n        <triangles>\n${triangles.join('\n')}\n        </triangles>`;
+}
+
+async function export3MF(filename) {
+  if (typeof JSZip === 'undefined') {
+    alert('Библиотека JSZip ещё загружается, проверь интернет и нажми ещё раз.');
+    return;
+  }
+  const zip = new JSZip();
+  zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>
 </Types>`);
-
-      zip.folder('_rels').file('.rels', `<?xml version="1.0" encoding="UTF-8"?>
+  zip.folder('_rels').file('.rels', `<?xml version="1.0" encoding="UTF-8"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>
 </Relationships>`);
 
-      const entries = Object.entries(colorParts).filter(([_, d]) => d.pos.length > 0);
-      let objectsXml = '';
-      let componentsXml = '';
-      let matXml = '';
-
-      entries.forEach(([name, data], idx) => {
-        const objId = idx + 1;
-        matXml += `      <base name="${name}" displaycolor="${data.color}" />\n`;
-
-        const pos = data.pos;
-        const numTris = pos.length / 9;
-        let vXml = '';
-        let tXml = '';
-        for (let i = 0; i < numTris; i++) {
-          const b = i * 9;
-          vXml += `          <vertex x="${pos[b].toFixed(3)}" y="${pos[b+1].toFixed(3)}" z="${pos[b+2].toFixed(3)}" />\n`;
-          vXml += `          <vertex x="${pos[b+3].toFixed(3)}" y="${pos[b+4].toFixed(3)}" z="${pos[b+5].toFixed(3)}" />\n`;
-          vXml += `          <vertex x="${pos[b+6].toFixed(3)}" y="${pos[b+7].toFixed(3)}" z="${pos[b+8].toFixed(3)}" />\n`;
-          const v0 = i * 3;
-          tXml += `          <triangle v1="${v0}" v2="${v0+1}" v3="${v0+2}" pid="10" p1="${idx}" />\n`;
-        }
-
-        objectsXml += `    <object id="${objId}" name="${name}" type="model" pid="10" pindex="${idx}">
+  const entries = Object.entries(colorParts).filter(([_, d]) => d.pos.length > 0);
+  let objectsXml = '', buildItemsXml = '', matXml = '';
+  entries.forEach(([name, data], idx) => {
+    const objId = idx + 1;
+    matXml += `      <base name="${name}" displaycolor="${data.color}" />\n`;
+    objectsXml += `    <object id="${objId}" name="plate_${name}" type="model" pid="10" pindex="${idx}">
       <mesh>
-        <vertices>
-${vXml}        </vertices>
-        <triangles>
-${tXml}        </triangles>
+${buildIndexedMeshXml(data.pos, 10, idx)}
       </mesh>
     </object>\n`;
-        componentsXml += `        <component objectid="${objId}" />\n`;
-      });
+    buildItemsXml += `    <item objectid="${objId}" />\n`;
+  });
 
-      const assemblyId = entries.length + 1;
-      const modelXml = `<?xml version="1.0" encoding="UTF-8"?>
+  zip.folder('3D').file('3dmodel.model', `<?xml version="1.0" encoding="UTF-8"?>
 <model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
   <resources>
     <basematerials id="10">
 ${matXml}    </basematerials>
-${objectsXml}    <object id="${assemblyId}" name="RF_License_Plate" type="model">
-      <components>
-${componentsXml}      </components>
-    </object>
-  </resources>
+${objectsXml}  </resources>
   <build>
-    <item objectid="${assemblyId}" />
-  </build>
-</model>`;
+${buildItemsXml}  </build>
+</model>`);
 
-      zip.folder('3D').file('3dmodel.model', modelXml);
+  triggerDownload(await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }), filename);
+}
 
-      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
-      triggerDownload(blob, filename);
+const updateLabels = () => {
+  $('val-scale').textContent = $('rng-scale').value + ' мм';
+  $('val-base').textContent = $('rng-base').value + ' мм';
+  $('val-rel').textContent = $('rng-rel').value + ' мм';
+};
+
+['in-l1', 'in-dig', 'in-l23', 'in-reg', 'sel-lug', 'chk-bolts', 'chk-flag', 'rng-scale', 'rng-base', 'rng-rel'].forEach(id => {
+  const el = $(id);
+  const handler = () => {
+    if (id === 'in-l1' || id === 'in-l23') {
+      const c = sanitizeGostLetters(el.value);
+      if (el.value !== c) el.value = c;
+    } else if (id === 'in-dig' || id === 'in-reg') {
+      const c = sanitizeDigits(el.value);
+      if (el.value !== c) el.value = c;
     }
-
-    const updateLabels = () => {
-      document.getElementById('val-scale').textContent = document.getElementById('rng-scale').value + ' мм';
-      document.getElementById('val-base').textContent = document.getElementById('rng-base').value + ' мм';
-      document.getElementById('val-rel').textContent = document.getElementById('rng-rel').value + ' мм';
-    };
-
-    ['in-l1', 'in-dig', 'in-l23', 'in-reg', 'sel-lug', 'chk-bolts', 'chk-flag', 'rng-scale', 'rng-base', 'rng-rel']
-      .forEach(id => {
-        const el = document.getElementById(id);
-        const handler = () => {
-          updateLabels();
-          saveSettings();
-          buildPlateMesh();
-        };
-        el.addEventListener('input', handler);
-        el.addEventListener('change', handler);
-      });
-
-    const getPlateName = () => {
-      const s = `${document.getElementById('in-l1').value}${document.getElementById('in-dig').value}${document.getElementById('in-l23').value}_${document.getElementById('in-reg').value}`.toUpperCase();
-      return s.trim() || 'RF';
-    };
-
-    document.getElementById('btn-3mf').addEventListener('click', () => {
-      addToHistory();
-      export3MF(`nomer_${getPlateName()}.3mf`);
-    });
-
-    document.getElementById('btn-stl').addEventListener('click', () => {
-      addToHistory();
-      const exporter = new STLExporter();
-      const result = exporter.parse(plateGroup, { binary: true });
-      const blob = new Blob([result], { type: 'application/octet-stream' });
-      triggerDownload(blob, `nomer_${getPlateName()}.stl`);
-    });
-
-    function resizeViewer() {
-      const nw = viewer.clientWidth || window.innerWidth;
-      const nh = viewer.clientHeight || 245;
-      camera.aspect = nw / nh;
-      camera.updateProjectionMatrix();
-      renderer.setSize(nw, nh);
-    }
-    window.addEventListener('resize', resizeViewer);
-
-    loadSettings();
     updateLabels();
-    renderHistory();
+    saveSettings();
     buildPlateMesh();
-    resizeViewer();
+  };
+  el.addEventListener('input', handler);
+  el.addEventListener('change', handler);
+});
 
-    function animate() {
-      requestAnimationFrame(animate);
-      controls.update();
-      renderer.render(scene, camera);
-    }
-    animate();
-  </script>
+const getPlateName = () => (`${$('in-l1').value}${$('in-dig').value}${$('in-l23').value}_${$('in-reg').value}`.toUpperCase().trim() || 'RF');
+
+$('btn-3mf').addEventListener('click', () => { addToHistory(); export3MF(`nomer_${getPlateName()}.3mf`); });
+
+$('btn-stl').addEventListener('click', () => {
+  addToHistory();
+  const result = new STLExporter().parse(plateGroup, { binary: true });
+  triggerDownload(new Blob([result], { type: 'application/octet-stream' }), `nomer_${getPlateName()}.stl`);
+});
+
+function resizeViewer() {
+  const nw = viewer.clientWidth || window.innerWidth, nh = viewer.clientHeight || 245;
+  camera.aspect = nw / nh;
+  camera.updateProjectionMatrix();
+  renderer.setSize(nw, nh);
+}
+window.addEventListener('resize', resizeViewer);
+
+loadSettings();
+updateLabels();
+renderHistory();
+buildPlateMesh();
+resizeViewer();
+loadFontWithFallback(0);
+
+(function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+})();
+</script>
 </body>
 </html>
