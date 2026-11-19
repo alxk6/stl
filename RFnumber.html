@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Генератор 3D-номера РФ ГОСТ (3MF для AMS)</title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { margin: 0; background: #121417; color: #f1f3f5; display: flex; flex-direction: column; min-height: 100vh; }
+    header { padding: 12px 16px; background: #1a1d21; border-bottom: 1px solid #2c3036; display: flex; justify-content: space-between; align-items: center; }
+    header h1 { margin: 0; font-size: 16px; font-weight: 600; }
+    .saved-badge { font-size: 11px; color: #51cf66; opacity: 0; transition: opacity 0.3s; }
+    .saved-badge.show { opacity: 1; }
+
+    .container { display: flex; flex: 1; flex-direction: column; }
+
+    #viewer { width: 100%; height: 245px; position: relative; background: #16191d; border-bottom: 1px solid #2c3036; flex-shrink: 0; }
+    .hint { position: absolute; bottom: 8px; right: 12px; font-size: 11px; color: #868e96; pointer-events: none; }
+
+    .sidebar { width: 100%; padding: 16px; background: #1a1d21; display: flex; flex-direction: column; gap: 13px; flex: 1; }
+
+    @media (min-width: 768px) {
+      .container { flex-direction: row; }
+      #viewer { height: auto; min-height: calc(100vh - 46px); border-bottom: none; order: 2; }
+      .sidebar { max-width: 390px; border-right: 1px solid #2c3036; order: 1; }
+    }
+
+    .plate-input-box {
+      background: #fff; color: #111; border: 3px solid #111; border-radius: 10px;
+      padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 4px;
+    }
+    .plate-dot { width: 6px; height: 6px; border-radius: 50%; background: #222; flex-shrink: 0; }
+    .plate-main { display: flex; align-items: baseline; gap: 4px; flex: 1; justify-content: center; }
+    .plate-reg { border-left: 2px solid #111; padding-left: 8px; display: flex; flex-direction: column; align-items: center; }
+    input[type="text"] {
+      border: 1px dashed #bbb; border-radius: 4px; text-align: center; font-weight: 800;
+      text-transform: uppercase; background: #f8f9fa; color: #111; outline: none; padding: 2px 0;
+    }
+    input[type="text"]:focus { border-color: #228be6; background: #e7f5ff; }
+    #in-l1 { width: 36px; font-size: 25px; }
+    #in-dig { width: 76px; font-size: 30px; }
+    #in-l23 { width: 62px; font-size: 25px; }
+    #in-reg { width: 60px; font-size: 22px; }
+    .rus-label { font-size: 10px; font-weight: 800; letter-spacing: 0.5px; margin-top: 2px; }
+
+    .control-group { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+    .control-group label { color: #adb5bd; display: flex; justify-content: space-between; }
+    select {
+      background: #25282e; color: #f1f3f5; border: 1px solid #373b42;
+      border-radius: 8px; padding: 10px 12px; font-size: 14px; outline: none;
+    }
+    input[type="range"] { width: 100%; accent-color: #339af0; }
+    .checkbox-row { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; }
+    .checkbox-row input { width: 18px; height: 18px; accent-color: #339af0; }
+    .btn-row { display: flex; gap: 10px; margin-top: 4px; }
+    button {
+      flex: 1; padding: 14px 10px; border: none; border-radius: 8px;
+      font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.15s;
+    }
+    .btn-3mf { background: #2b8a3e; color: white; }
+    .btn-3mf:active { background: #237032; }
+    .btn-stl { background: #343a40; color: #dee2e6; flex: 0.5; }
+    .btn-stl:active { background: #495057; }
+
+    .history-box { margin-top: 4px; padding-bottom: 16px; display: none; flex-direction: column; gap: 8px; }
+    .history-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #868e96; }
+    .history-clear { background: none; border: none; color: #868e96; font-size: 12px; padding: 0; flex: none; text-decoration: underline; }
+    .history-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .history-chip {
+      background: #25282e; border: 1px solid #373b42; color: #e9ecef;
+      padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 6px;
+    }
+    .history-chip:active { background: #343a40; border-color: #339af0; }
+    .history-chip span.sub { color: #868e96; font-weight: 400; font-size: 11px; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>🚗 Госномер РФ ГОСТ (3MF / STL)</h1>
+    <span class="saved-badge" id="saved-badge">✓ Сохранено</span>
+  </header>
+
+  <div class="container">
+    <div id="viewer">
+      <div class="hint">Крути пальцем • Зум двумя</div>
+    </div>
+
+    <div class="sidebar">
+      <div class="plate-input-box">
+        <span class="plate-dot"></span>
+        <div class="plate-main">
+          <input type="text" id="in-l1" maxlength="1" value="А" />
+          <input type="text" id="in-dig" maxlength="3" value="777" />
+          <input type="text" id="in-l23" maxlength="2" value="АА" />
+        </div>
+        <div class="plate-reg">
+          <input type="text" id="in-reg" maxlength="3" value="77" />
+          <span class="rus-label">RUS 🇷🇺</span>
+        </div>
+        <span class="plate-dot"></span>
+      </div>
+
+      <div class="control-group">
+        <label>Крепление под кольцо:</label>
+        <select id="sel-lug">
+          <option value="external" selected>Выносное ушко слева</option>
+          <option value="inside">Отверстие внутри номера (в углу)</option>
+          <option value="none">Без отверстия (просто номер)</option>
+        </select>
+      </div>
+
+      <label class="checkbox-row">
+        <input type="checkbox" id="chk-bolts" checked />
+        Монтажные точки по бокам (ГОСТ)
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" id="chk-flag" checked />
+        Флаг РФ (триколор в 3MF)
+      </label>
+
+      <div class="control-group">
+        <label>Длина номера: <span id="val-scale">85 мм</span></label>
+        <input type="range" id="rng-scale" min="60" max="160" value="85" />
+      </div>
+
+      <div class="control-group">
+        <label>Толщина основы: <span id="val-base">2.2 мм</span></label>
+        <input type="range" id="rng-base" min="1.2" max="4.0" step="0.2" value="2.2" />
+      </div>
+
+      <div class="control-group">
+        <label>Высота букв и рамки: <span id="val-rel">0.8 мм</span></label>
+        <input type="range" id="rng-rel" min="0.4" max="2.0" step="0.2" value="0.8" />
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-3mf" id="btn-3mf">🎨 Скачать 3MF (AMS)</button>
+        <button class="btn-stl" id="btn-stl">STL</button>
+      </div>
+
+      <div class="history-box" id="history-box">
+        <div class="history-header">
+          <span>Недавние номера (нажми для загрузки):</span>
+          <button class="history-clear" id="btn-clear-history">Очистить</button>
+        </div>
+        <div class="history-list" id="history-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { STLExporter } from 'three/addons/exporters/STLExporter.js';
+
+    const STORAGE_KEY = 'rf_plate_3d_settings_v1';
+    const HISTORY_KEY = 'rf_plate_3d_history_v1';
+
+    function saveSettings() {
+      try {
+        const data = {
+          l1: document.getElementById('in-l1').value,
+          dig: document.getElementById('in-dig').value,
+          l23: document.getElementById('in-l23').value,
+          reg: document.getElementById('in-reg').value,
+          lug: document.getElementById('sel-lug').value,
+          bolts: document.getElementById('chk-bolts').checked,
+          flag: document.getElementById('chk-flag').checked,
+          scale: document.getElementById('rng-scale').value,
+          base: document.getElementById('rng-base').value,
+          rel: document.getElementById('rng-rel').value
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        const badge = document.getElementById('saved-badge');
+        badge.classList.add('show');
+        clearTimeout(window._saveTimer);
+        window._saveTimer = setTimeout(() => badge.classList.remove('show'), 1200);
+      } catch (e) {}
+    }
+
+    function loadSettings() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const d = JSON.parse(raw);
+        if (d.l1 !== undefined) document.getElementById('in-l1').value = d.l1;
+        if (d.dig !== undefined) document.getElementById('in-dig').value = d.dig;
+        if (d.l23 !== undefined) document.getElementById('in-l23').value = d.l23;
+        if (d.reg !== undefined) document.getElementById('in-reg').value = d.reg;
+        if (d.lug !== undefined) document.getElementById('sel-lug').value = d.lug;
+        if (d.bolts !== undefined) document.getElementById('chk-bolts').checked = d.bolts;
+        if (d.flag !== undefined) document.getElementById('chk-flag').checked = d.flag;
+        if (d.scale !== undefined) document.getElementById('rng-scale').value = d.scale;
+        if (d.base !== undefined) document.getElementById('rng-base').value = d.base;
+        if (d.rel !== undefined) document.getElementById('rng-rel').value = d.rel;
+      } catch (e) {}
+    }
+
+    function addToHistory() {
+      try {
+        const item = {
+          l1: document.getElementById('in-l1').value.toUpperCase(),
+          dig: document.getElementById('in-dig').value.toUpperCase(),
+          l23: document.getElementById('in-l23').value.toUpperCase(),
+          reg: document.getElementById('in-reg').value.toUpperCase(),
+          lug: document.getElementById('sel-lug').value,
+          bolts: document.getElementById('chk-bolts').checked,
+          flag: document.getElementById('chk-flag').checked,
+          scale: document.getElementById('rng-scale').value,
+          base: document.getElementById('rng-base').value,
+          rel: document.getElementById('rng-rel').value
+        };
+        const label = `${item.l1}${item.dig}${item.l23} | ${item.reg}`;
+        let list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        list = list.filter(x => `${x.l1}${x.dig}${x.l23} | ${x.reg}` !== label);
+        list.unshift(item);
+        list = list.slice(0, 8);
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+        renderHistory();
+      } catch (e) {}
+    }
+
+    function renderHistory() {
+      const box = document.getElementById('history-box');
+      const container = document.getElementById('history-list');
+      try {
+        const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        if (!list.length) {
+          box.style.display = 'none';
+          return;
+        }
+        box.style.display = 'flex';
+        container.innerHTML = '';
+        list.forEach(item => {
+          const chip = document.createElement('div');
+          chip.className = 'history-chip';
+          chip.innerHTML = `<span>${item.l1}${item.dig}${item.l23} <b>${item.reg}</b></span><span class="sub">${item.scale}мм</span>`;
+          chip.addEventListener('click', () => {
+            document.getElementById('in-l1').value = item.l1;
+            document.getElementById('in-dig').value = item.dig;
+            document.getElementById('in-l23').value = item.l23;
+            document.getElementById('in-reg').value = item.reg;
+            if (item.lug) document.getElementById('sel-lug').value = item.lug;
+            if (item.bolts !== undefined) document.getElementById('chk-bolts').checked = item.bolts;
+            if (item.flag !== undefined) document.getElementById('chk-flag').checked = item.flag;
+            if (item.scale) document.getElementById('rng-scale').value = item.scale;
+            if (item.base) document.getElementById('rng-base').value = item.base;
+            if (item.rel) document.getElementById('rng-rel').value = item.rel;
+            updateLabels();
+            saveSettings();
+            buildPlateMesh();
+          });
+          container.appendChild(chip);
+        });
+      } catch (e) {}
+    }
+
+    document.getElementById('btn-clear-history').addEventListener('click', () => {
+      localStorage.removeItem(HISTORY_KEY);
+      renderHistory();
+    });
+
+    const viewer = document.getElementById('viewer');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x16191d);
+
+    const w = viewer.clientWidth || window.innerWidth;
+    const h = viewer.clientHeight || 245;
+
+    const camera = new THREE.PerspectiveCamera(38, w / h, 0.1, 1000);
+    camera.position.set(0, -52, 76);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    viewer.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
+    dirLight.position.set(40, -60, 100);
+    scene.add(dirLight);
+
+    let plateGroup = new THREE.Group();
+    scene.add(plateGroup);
+    let colorParts = {};
+
+    const mapLatinToCyr = {
+      'A':'А', 'B':'В', 'E':'Е', 'K':'К', 'M':'М', 'H':'Н',
+      'O':'О', 'P':'Р', 'C':'С', 'T':'Т', 'Y':'У', 'X':'Х'
+    };
+    const normChar = (ch) => mapLatinToCyr[ch] || ch;
+
+    const GOST_GLYPHS = {
+      '0': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.roundRect(x + lw/2, y + lw/2, w - lw, h - lw, w * 0.46);
+        ctx.stroke();
+      },
+      '1': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.22, y + h*0.24);
+        ctx.lineTo(x + w*0.56, y + lw*0.35);
+        ctx.lineTo(x + w*0.56, y + h);
+        ctx.stroke();
+      },
+      '2': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.12, y + h*0.26);
+        ctx.bezierCurveTo(x + w*0.14, y + lw*0.3, x + w*0.86, y + lw*0.3, x + w*0.86, y + h*0.28);
+        ctx.bezierCurveTo(x + w*0.86, y + h*0.52, x + w*0.14, y + h*0.66, x + w*0.12, y + h - lw/2);
+        ctx.lineTo(x + w*0.90, y + h - lw/2);
+        ctx.stroke();
+      },
+      '3': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.14, y + h*0.20);
+        ctx.bezierCurveTo(x + w*0.22, y + lw*0.3, x + w*0.84, y + lw*0.3, x + w*0.84, y + h*0.25);
+        ctx.bezierCurveTo(x + w*0.84, y + h*0.44, x + w*0.60, y + h*0.48, x + w*0.42, y + h*0.48);
+        ctx.moveTo(x + w*0.46, y + h*0.48);
+        ctx.bezierCurveTo(x + w*0.72, y + h*0.48, x + w*0.88, y + h*0.56, x + w*0.88, y + h*0.74);
+        ctx.bezierCurveTo(x + w*0.88, y + h - lw*0.3, x + w*0.20, y + h - lw*0.3, x + w*0.12, y + h*0.80);
+        ctx.stroke();
+      },
+      '4': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.72, y + h);
+        ctx.lineTo(x + w*0.72, y + lw*0.3);
+        ctx.lineTo(x + w*0.12, y + h*0.66);
+        ctx.lineTo(x + w*0.92, y + h*0.66);
+        ctx.stroke();
+      },
+      '5': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.84, y + lw/2);
+        ctx.lineTo(x + w*0.20, y + lw/2);
+        ctx.lineTo(x + w*0.16, y + h*0.45);
+        ctx.bezierCurveTo(x + w*0.32, y + h*0.36, x + w*0.88, y + h*0.38, x + w*0.88, y + h*0.69);
+        ctx.bezierCurveTo(x + w*0.88, y + h - lw*0.3, x + w*0.22, y + h - lw*0.3, x + w*0.12, y + h*0.80);
+        ctx.stroke();
+      },
+      '6': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.82, y + h*0.18);
+        ctx.bezierCurveTo(x + w*0.70, y + lw*0.2, x + w*0.14, y + lw*0.3, x + w*0.14, y + h*0.56);
+        ctx.bezierCurveTo(x + w*0.14, y + h - lw*0.2, x + w*0.88, y + h - lw*0.2, x + w*0.88, y + h*0.70);
+        ctx.bezierCurveTo(x + w*0.88, y + h*0.44, x + w*0.22, y + h*0.44, x + w*0.14, y + h*0.64);
+        ctx.stroke();
+      },
+      '7': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.10, y + lw/2);
+        ctx.lineTo(x + w*0.88, y + lw/2);
+        ctx.bezierCurveTo(x + w*0.66, y + h*0.36, x + w*0.42, y + h*0.66, x + w*0.38, y + h);
+        ctx.stroke();
+      },
+      '8': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.roundRect(x + w*0.16, y + lw/2, w*0.68, h*0.46, w*0.32);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.roundRect(x + w*0.12, y + h*0.47, w*0.76, h*0.53 - lw/2, w*0.36);
+        ctx.stroke();
+      },
+      '9': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.18, y + h*0.82);
+        ctx.bezierCurveTo(x + w*0.30, y + h - lw*0.2, x + w*0.86, y + h - lw*0.3, x + w*0.86, y + h*0.44);
+        ctx.bezierCurveTo(x + w*0.86, y + lw*0.2, x + w*0.12, y + lw*0.2, x + w*0.12, y + h*0.30);
+        ctx.bezierCurveTo(x + w*0.12, y + h*0.56, x + w*0.78, y + h*0.56, x + w*0.86, y + h*0.36);
+        ctx.stroke();
+      },
+      'А': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.10, y + h);
+        ctx.lineTo(x + w*0.44, y + lw/2);
+        ctx.lineTo(x + w*0.56, y + lw/2);
+        ctx.lineTo(x + w*0.90, y + h);
+        ctx.moveTo(x + w*0.23, y + h*0.70);
+        ctx.lineTo(x + w*0.77, y + h*0.70);
+        ctx.stroke();
+      },
+      'В': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.18, y + lw/2);
+        ctx.lineTo(x + w*0.18, y + h - lw/2);
+        ctx.moveTo(x + w*0.18, y + lw/2);
+        ctx.lineTo(x + w*0.62, y + lw/2);
+        ctx.bezierCurveTo(x + w*0.88, y + lw/2, x + w*0.88, y + h*0.48, x + w*0.62, y + h*0.48);
+        ctx.lineTo(x + w*0.18, y + h*0.48);
+        ctx.moveTo(x + w*0.62, y + h*0.48);
+        ctx.bezierCurveTo(x + w*0.92, y + h*0.48, x + w*0.92, y + h - lw/2, x + w*0.64, y + h - lw/2);
+        ctx.lineTo(x + w*0.18, y + h - lw/2);
+        ctx.stroke();
+      },
+      'Е': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.84, y + lw/2);
+        ctx.lineTo(x + w*0.18, y + lw/2);
+        ctx.lineTo(x + w*0.18, y + h - lw/2);
+        ctx.lineTo(x + w*0.86, y + h - lw/2);
+        ctx.moveTo(x + w*0.18, y + h*0.48);
+        ctx.lineTo(x + w*0.74, y + h*0.48);
+        ctx.stroke();
+      },
+      'К': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.18, y);
+        ctx.lineTo(x + w*0.18, y + h);
+        ctx.moveTo(x + w*0.84, y + lw*0.3);
+        ctx.lineTo(x + w*0.24, y + h*0.50);
+        ctx.lineTo(x + w*0.88, y + h - lw*0.3);
+        ctx.stroke();
+      },
+      'М': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.12, y + h);
+        ctx.lineTo(x + w*0.14, y + lw/2);
+        ctx.lineTo(x + w*0.50, y + h*0.68);
+        ctx.lineTo(x + w*0.86, y + lw/2);
+        ctx.lineTo(x + w*0.88, y + h);
+        ctx.stroke();
+      },
+      'Н': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.18, y);
+        ctx.lineTo(x + w*0.18, y + h);
+        ctx.moveTo(x + w*0.82, y);
+        ctx.lineTo(x + w*0.82, y + h);
+        ctx.moveTo(x + w*0.18, y + h*0.48);
+        ctx.lineTo(x + w*0.82, y + h*0.48);
+        ctx.stroke();
+      },
+      'О': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.roundRect(x + lw/2, y + lw/2, w - lw, h - lw, w * 0.46);
+        ctx.stroke();
+      },
+      'Р': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.18, y + h);
+        ctx.lineTo(x + w*0.18, y + lw/2);
+        ctx.lineTo(x + w*0.64, y + lw/2);
+        ctx.bezierCurveTo(x + w*0.92, y + lw/2, x + w*0.92, y + h*0.54, x + w*0.64, y + h*0.54);
+        ctx.lineTo(x + w*0.18, y + h*0.54);
+        ctx.stroke();
+      },
+      'С': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.86, y + h*0.24);
+        ctx.bezierCurveTo(x + w*0.76, y + lw*0.2, x + w*0.12, y + lw*0.2, x + w*0.12, y + h*0.50);
+        ctx.bezierCurveTo(x + w*0.12, y + h - lw*0.2, x + w*0.76, y + h - lw*0.2, x + w*0.86, y + h*0.76);
+        ctx.stroke();
+      },
+      'Т': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.08, y + lw/2);
+        ctx.lineTo(x + w*0.92, y + lw/2);
+        ctx.moveTo(x + w*0.50, y + lw/2);
+        ctx.lineTo(x + w*0.50, y + h);
+        ctx.stroke();
+      },
+      'У': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.14, y + lw*0.3);
+        ctx.lineTo(x + w*0.50, y + h*0.56);
+        ctx.moveTo(x + w*0.86, y + lw*0.3);
+        ctx.lineTo(x + w*0.42, y + h*0.84);
+        ctx.bezierCurveTo(x + w*0.34, y + h - lw*0.3, x + w*0.22, y + h - lw*0.3, x + w*0.14, y + h*0.92);
+        ctx.stroke();
+      },
+      'Х': (ctx, x, y, w, h, lw) => {
+        ctx.beginPath();
+        ctx.moveTo(x + w*0.14, y + lw*0.3);
+        ctx.lineTo(x + w*0.86, y + h - lw*0.3);
+        ctx.moveTo(x + w*0.86, y + lw*0.3);
+        ctx.lineTo(x + w*0.14, y + h - lw*0.3);
+        ctx.stroke();
+      }
+    };
+
+    function drawGostString(ctx, text, cx, cy, charW, charH, gap, strokeW) {
+      const chars = Array.from(text).map(normChar);
+      const totalW = chars.length * charW + Math.max(0, chars.length - 1) * gap;
+      let curX = cx - totalW / 2;
+      const topY = cy - charH / 2;
+
+      ctx.save();
+      ctx.strokeStyle = '#0a0a0a';
+      ctx.lineWidth = strokeW;
+      ctx.lineCap = 'butt';
+      ctx.lineJoin = 'round';
+
+      for (const ch of chars) {
+        if (GOST_GLYPHS[ch]) {
+          GOST_GLYPHS[ch](ctx, curX, topY, charW, charH, strokeW);
+        } else if (ch !== ' ') {
+          ctx.fillStyle = '#0a0a0a';
+          ctx.font = `800 ${Math.round(charH)}px Arial, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(ch, curX + charW/2, cy);
+        }
+        curX += charW + gap;
+      }
+      ctx.restore();
+    }
+
+    function buildPlateMesh() {
+      while (plateGroup.children.length) plateGroup.remove(plateGroup.children[0]);
+
+      const l1 = (document.getElementById('in-l1').value || ' ').toUpperCase();
+      const dig = (document.getElementById('in-dig').value || '   ').toUpperCase();
+      const l23 = (document.getElementById('in-l23').value || '  ').toUpperCase();
+      const reg = (document.getElementById('in-reg').value || '  ').toUpperCase();
+      const lugMode = document.getElementById('sel-lug').value; // 'external' | 'inside' | 'none'
+      const withBolts = document.getElementById('chk-bolts').checked;
+      const withFlag = document.getElementById('chk-flag').checked;
+
+      const targetW = parseFloat(document.getElementById('rng-scale').value);
+      const baseH = parseFloat(document.getElementById('rng-base').value);
+      const relH = parseFloat(document.getElementById('rng-rel').value);
+
+      const scale = targetW / 520.0;
+      const W = 520 * scale;
+      const H = 112 * scale;
+      const R = 11 * scale;
+
+      const lugD = 11.0;
+      const holeD = 4.5;
+      const lugOffset = (lugMode === 'external') ? lugD * 0.45 : 0;
+      const leftExtra = (lugMode === 'external') ? (lugOffset + lugD / 2) : 0;
+
+      const totalW = W + leftExtra;
+      const totalH = H;
+
+      const pxPerMm = 7.5;
+      const pad = 0.6;
+      const nx = Math.ceil((totalW + pad * 2) * pxPerMm);
+      const ny = Math.ceil((totalH + pad * 2) * pxPerMm);
+
+      const toPxX = (x) => (x + leftExtra + pad) * pxPerMm;
+      const toPxY = (y) => (totalH - y + pad) * pxPerMm;
+
+      function roundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, r);
+        ctx.closePath();
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = nx; canvas.height = ny;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, nx, ny);
+
+      // 1. Белая основа номера
+      ctx.fillStyle = '#ffffff';
+      roundRect(ctx, toPxX(0), toPxY(H), W * pxPerMm, H * pxPerMm, R * pxPerMm);
+      ctx.fill();
+
+      // Вариант 1: Выносное ушко слева
+      if (lugMode === 'external') {
+        const cx = toPxX(-lugOffset);
+        const cy = toPxY(H / 2);
+        ctx.beginPath();
+        ctx.arc(cx, cy, (lugD / 2) * pxPerMm, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(cx, cy - lugD * 0.42 * pxPerMm, (lugOffset + R * 0.5) * pxPerMm, lugD * 0.84 * pxPerMm);
+
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(cx, cy, (holeD / 2) * pxPerMm, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 2. Чёрная внешняя рамка и разделитель
+      const border = 5.0 * scale;
+      ctx.fillStyle = '#0a0a0a';
+      roundRect(ctx, toPxX(0), toPxY(H), W * pxPerMm, H * pxPerMm, R * pxPerMm);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      roundRect(
+        ctx,
+        toPxX(border), toPxY(H - border),
+        (W - border * 2) * pxPerMm, (H - border * 2) * pxPerMm,
+        Math.max(1, (R - border) * pxPerMm)
+      );
+      ctx.fill();
+
+      const divX = 386 * scale;
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(toPxX(divX), toPxY(H), border * pxPerMm, H * pxPerMm);
+
+      // Монтажные точки по бокам
+      if (withBolts) {
+        ctx.fillStyle = '#0a0a0a';
+        const dotR = Math.max(1.2, 3.2 * scale * pxPerMm);
+        if (lugMode !== 'inside') {
+          ctx.beginPath();
+          ctx.arc(toPxX(21 * scale), toPxY(56 * scale), dotR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.beginPath();
+        ctx.arc(toPxX(499 * scale), toPxY(56 * scale), dotR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 3. Символы номера ГОСТ
+      drawGostString(
+        ctx, l1,
+        toPxX(58 * scale), toPxY(46 * scale),
+        40 * scale * pxPerMm, 58 * scale * pxPerMm, 0,
+        8.2 * scale * pxPerMm
+      );
+
+      drawGostString(
+        ctx, dig,
+        toPxX(174 * scale), toPxY(55 * scale),
+        45 * scale * pxPerMm, 76 * scale * pxPerMm, 9 * scale * pxPerMm,
+        9.5 * scale * pxPerMm
+      );
+
+      drawGostString(
+        ctx, l23,
+        toPxX(314 * scale), toPxY(46 * scale),
+        40 * scale * pxPerMm, 58 * scale * pxPerMm, 9 * scale * pxPerMm,
+        8.2 * scale * pxPerMm
+      );
+
+      // Блок региона
+      const is3Reg = reg.trim().length >= 3;
+      const regX = is3Reg ? 446 : 453;
+      const regW = is3Reg ? 27 : 32;
+      const regGap = is3Reg ? 5 : 7;
+      drawGostString(
+        ctx, reg,
+        toPxX(regX * scale), toPxY(75 * scale),
+        regW * scale * pxPerMm, 50 * scale * pxPerMm, regGap * scale * pxPerMm,
+        6.8 * scale * pxPerMm
+      );
+
+      // Надпись RUS
+      const rusX = withFlag ? 426 : 453;
+      ctx.save();
+      ctx.fillStyle = '#0a0a0a';
+      ctx.font = `900 ${Math.round(18 * scale * pxPerMm)}px Arial, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.translate(toPxX(rusX * scale), toPxY(24 * scale));
+      ctx.scale(1.22, 0.92);
+      ctx.fillText('RUS', 0, 0);
+      ctx.restore();
+
+      // 4. Флаг РФ
+      if (withFlag) {
+        const fx = 460 * scale, fy = 15 * scale, fw = 42 * scale, fh = 19 * scale;
+        const bw = Math.max(0.25, 1.3 * scale);
+        ctx.fillStyle = '#0a0a0a';
+        ctx.fillRect(toPxX(fx), toPxY(fy + fh), fw * pxPerMm, fh * pxPerMm);
+
+        const innerWFlag = fw - 2 * bw;
+        const innerHFlag = fh - 2 * bw;
+        const sh = innerHFlag / 3;
+
+        ctx.fillStyle = '#ff1e1e';
+        ctx.fillRect(toPxX(fx + bw), toPxY(fy + bw + sh), innerWFlag * pxPerMm, sh * pxPerMm);
+
+        ctx.fillStyle = '#0050ff';
+        ctx.fillRect(toPxX(fx + bw), toPxY(fy + bw + sh * 2), innerWFlag * pxPerMm, sh * pxPerMm);
+
+        ctx.fillStyle = '#f5f5f5';
+        ctx.fillRect(toPxX(fx + bw), toPxY(fy + bw + sh * 3), innerWFlag * pxPerMm, sh * pxPerMm);
+      }
+
+      // Вариант 2: Чистое отверстие в верхнем левом углу самого номера
+      if (lugMode === 'inside') {
+        const inHoleX = border + 3.6;
+        const inHoleY = H - border - 3.6;
+        const rHole = 2.0;
+
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(toPxX(inHoleX), toPxY(inHoleY), rHole * pxPerMm, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const img = ctx.getImageData(0, 0, nx, ny).data;
+      const cellType = new Uint8Array(nx * ny);
+      for (let i = 0; i < nx * ny; i++) {
+        const r = img[i * 4], g = img[i * 4 + 1], b = img[i * 4 + 2];
+        if (r < 5 && g < 5 && b < 5) cellType[i] = 0;
+        else if (r > 250 && g > 250 && b > 250) cellType[i] = 1;
+        else if (r > 235 && g > 235 && b > 235) cellType[i] = 5;
+        else if (r > 200 && g < 60) cellType[i] = 4;
+        else if (b > 200 && r < 60) cellType[i] = 3;
+        else cellType[i] = 2;
+      }
+
+      const buckets = {
+        white: { color: '#FFFFFF', hex: 0xf5f5f5, pos: [] },
+        black: { color: '#18181B', hex: 0x18181b, pos: [] },
+        blue:  { color: '#0055FF', hex: 0x0055ff, pos: [] },
+        red:   { color: '#E61919', hex: 0xe61919, pos: [] }
+      };
+
+      const dx = 1.0 / pxPerMm;
+      const offX = -totalW / 2;
+      const offY = -totalH / 2;
+
+      const addBox = (arr, x0, x1, y0, y1, z0, z1) => {
+        arr.push(x0,y0,z1, x1,y0,z1, x1,y1,z1, x0,y0,z1, x1,y1,z1, x0,y1,z1);
+        arr.push(x0,y1,z0, x1,y1,z0, x1,y0,z0, x0,y1,z0, x1,y0,z0, x0,y0,z0);
+        arr.push(x1,y1,z0, x0,y1,z0, x0,y1,z1, x1,y1,z0, x0,y1,z1, x1,y1,z1);
+        arr.push(x0,y0,z0, x1,y0,z0, x1,y0,z1, x0,y0,z0, x1,y0,z1, x0,y0,z1);
+        arr.push(x0,y1,z0, x0,y0,z0, x0,y0,z1, x0,y1,z0, x0,y0,z1, x0,y1,z1);
+        arr.push(x1,y0,z0, x1,y1,z0, x1,y1,z1, x1,y0,z0, x1,y1,z1, x1,y0,z1);
+      };
+
+      for (let r = 0; r < ny; r++) {
+        let c = 0;
+        while (c < nx) {
+          const t = cellType[r * nx + c];
+          if (t === 0) { c++; continue; }
+          let cEnd = c + 1;
+          while (cEnd < nx && cellType[r * nx + cEnd] === t) cEnd++;
+
+          const x0 = offX + c * dx;
+          const x1 = offX + cEnd * dx;
+          const y0 = offY + (ny - 1 - r) * dx;
+          const y1 = y0 + dx;
+
+          const topWhiteZ = (t === 5) ? (baseH + relH) : baseH;
+          addBox(buckets.white.pos, x0, x1, y0, y1, 0, topWhiteZ);
+
+          if (t === 2) addBox(buckets.black.pos, x0, x1, y0, y1, baseH, baseH + relH);
+          if (t === 3) addBox(buckets.blue.pos,  x0, x1, y0, y1, baseH, baseH + relH);
+          if (t === 4) addBox(buckets.red.pos,   x0, x1, y0, y1, baseH, baseH + relH);
+
+          c = cEnd;
+        }
+      }
+
+      colorParts = buckets;
+
+      for (const [key, data] of Object.entries(buckets)) {
+        if (data.pos.length === 0) continue;
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(data.pos, 3));
+        geo.computeVertexNormals();
+        const mat = new THREE.MeshStandardMaterial({ color: data.hex, roughness: 0.4 });
+        plateGroup.add(new THREE.Mesh(geo, mat));
+      }
+    }
+
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 2000);
+    }
+
+    async function export3MF(filename) {
+      if (typeof JSZip === 'undefined') {
+        alert('Библиотека JSZip ещё загружается, проверь интернет и нажми ещё раз.');
+        return;
+      }
+      const zip = new JSZip();
+
+      zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>
+</Types>`);
+
+      zip.folder('_rels').file('.rels', `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>
+</Relationships>`);
+
+      const entries = Object.entries(colorParts).filter(([_, d]) => d.pos.length > 0);
+      let objectsXml = '';
+      let componentsXml = '';
+      let matXml = '';
+
+      entries.forEach(([name, data], idx) => {
+        const objId = idx + 1;
+        matXml += `      <base name="${name}" displaycolor="${data.color}" />\n`;
+
+        const pos = data.pos;
+        const numTris = pos.length / 9;
+        let vXml = '';
+        let tXml = '';
+        for (let i = 0; i < numTris; i++) {
+          const b = i * 9;
+          vXml += `          <vertex x="${pos[b].toFixed(3)}" y="${pos[b+1].toFixed(3)}" z="${pos[b+2].toFixed(3)}" />\n`;
+          vXml += `          <vertex x="${pos[b+3].toFixed(3)}" y="${pos[b+4].toFixed(3)}" z="${pos[b+5].toFixed(3)}" />\n`;
+          vXml += `          <vertex x="${pos[b+6].toFixed(3)}" y="${pos[b+7].toFixed(3)}" z="${pos[b+8].toFixed(3)}" />\n`;
+          const v0 = i * 3;
+          tXml += `          <triangle v1="${v0}" v2="${v0+1}" v3="${v0+2}" pid="10" p1="${idx}" />\n`;
+        }
+
+        objectsXml += `    <object id="${objId}" name="${name}" type="model" pid="10" pindex="${idx}">
+      <mesh>
+        <vertices>
+${vXml}        </vertices>
+        <triangles>
+${tXml}        </triangles>
+      </mesh>
+    </object>\n`;
+        componentsXml += `        <component objectid="${objId}" />\n`;
+      });
+
+      const assemblyId = entries.length + 1;
+      const modelXml = `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+  <resources>
+    <basematerials id="10">
+${matXml}    </basematerials>
+${objectsXml}    <object id="${assemblyId}" name="RF_License_Plate" type="model">
+      <components>
+${componentsXml}      </components>
+    </object>
+  </resources>
+  <build>
+    <item objectid="${assemblyId}" />
+  </build>
+</model>`;
+
+      zip.folder('3D').file('3dmodel.model', modelXml);
+
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+      triggerDownload(blob, filename);
+    }
+
+    const updateLabels = () => {
+      document.getElementById('val-scale').textContent = document.getElementById('rng-scale').value + ' мм';
+      document.getElementById('val-base').textContent = document.getElementById('rng-base').value + ' мм';
+      document.getElementById('val-rel').textContent = document.getElementById('rng-rel').value + ' мм';
+    };
+
+    ['in-l1', 'in-dig', 'in-l23', 'in-reg', 'sel-lug', 'chk-bolts', 'chk-flag', 'rng-scale', 'rng-base', 'rng-rel']
+      .forEach(id => {
+        const el = document.getElementById(id);
+        const handler = () => {
+          updateLabels();
+          saveSettings();
+          buildPlateMesh();
+        };
+        el.addEventListener('input', handler);
+        el.addEventListener('change', handler);
+      });
+
+    const getPlateName = () => {
+      const s = `${document.getElementById('in-l1').value}${document.getElementById('in-dig').value}${document.getElementById('in-l23').value}_${document.getElementById('in-reg').value}`.toUpperCase();
+      return s.trim() || 'RF';
+    };
+
+    document.getElementById('btn-3mf').addEventListener('click', () => {
+      addToHistory();
+      export3MF(`nomer_${getPlateName()}.3mf`);
+    });
+
+    document.getElementById('btn-stl').addEventListener('click', () => {
+      addToHistory();
+      const exporter = new STLExporter();
+      const result = exporter.parse(plateGroup, { binary: true });
+      const blob = new Blob([result], { type: 'application/octet-stream' });
+      triggerDownload(blob, `nomer_${getPlateName()}.stl`);
+    });
+
+    function resizeViewer() {
+      const nw = viewer.clientWidth || window.innerWidth;
+      const nh = viewer.clientHeight || 245;
+      camera.aspect = nw / nh;
+      camera.updateProjectionMatrix();
+      renderer.setSize(nw, nh);
+    }
+    window.addEventListener('resize', resizeViewer);
+
+    loadSettings();
+    updateLabels();
+    renderHistory();
+    buildPlateMesh();
+    resizeViewer();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
